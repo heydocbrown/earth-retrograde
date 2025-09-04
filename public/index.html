@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Is Earth in Retrograde?</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated starfield background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 800px;
+            width: 100%;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5)); }
+            to { filter: drop-shadow(0 0 30px rgba(118, 75, 162, 0.8)); }
+        }
+
+        .status {
+            font-size: clamp(4rem, 10vw, 8rem);
+            font-weight: bold;
+            margin: 2rem 0;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status.yes {
+            color: #ff6b6b;
+            text-shadow: 0 0 40px #ff6b6b, 0 0 80px #ff6b6b;
+        }
+
+        .status.no {
+            color: #4ecdc4;
+            text-shadow: 0 0 40px #4ecdc4, 0 0 80px #4ecdc4;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .details {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .planet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .planet-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .planet-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .planet-name {
+            font-size: 1.2rem;
+            color: #a8b2d1;
+            margin-bottom: 0.5rem;
+        }
+
+        .retrograde-status {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .retrograde-yes {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .next-date {
+            margin-top: 2rem;
+            font-size: 1.1rem;
+            color: #a8b2d1;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 3rem;
+            font-size: 1.1rem;
+            color: #a8b2d1;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="container">
+        <h1>Is Earth in Retrograde?</h1>
+        
+        <div class="status" id="status">
+            <div class="loading"></div>
+        </div>
+        
+        <div class="details">
+            <h2 style="margin-bottom: 1rem; color: #a8b2d1;">As Viewed From:</h2>
+            <div class="planet-grid" id="planetGrid"></div>
+        </div>
+        
+        <div class="next-date" id="nextDate"></div>
+        
+        <div class="footer">
+            <p id="footerMessage">Earth's retrograde motion as seen from other celestial bodies</p>
+        </div>
+    </div>
+
+    <script>
+        // Global variable to store retrograde data
+        let retrogradeData = null;
+        let dataLoadError = false;
+
+        const planetSymbols = {
+            mercury: '☿',
+            venus: '♀',
+            mars: '♂',
+            jupiter: '♃',
+            saturn: '♄',
+            uranus: '♅',
+            neptune: '♆',
+            pluto: '♇',
+            chiron: '⚷'
+        };
+
+        function createStarfield() {
+            const stars = document.getElementById('stars');
+            const starCount = 100;
+            
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                stars.appendChild(star);
+            }
+        }
+
+        // Load retrograde data from JSON file
+        async function loadRetrogradeData() {
+            try {
+                const response = await fetch('retrograde_periods.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                retrogradeData = await response.json();
+                console.log('Retrograde data loaded successfully');
+                console.log(`Data covers years ${retrogradeData.metadata.start_year} to ${retrogradeData.metadata.end_year}`);
+                updateStatus();
+            } catch (error) {
+                console.error('Error loading retrograde data:', error);
+                dataLoadError = true;
+                showError();
+            }
+        }
+
+        function showError() {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = '<div style="font-size: 1.5rem; color: #ff6b6b;">Error loading data</div>';
+            statusEl.className = 'status';
+            
+            const nextDateEl = document.getElementById('nextDate');
+            nextDateEl.textContent = 'Please ensure retrograde_periods.json is in the same directory as this HTML file.';
+            nextDateEl.style.opacity = '1';
+        }
+
+        function isInRetrograde(planet, date) {
+            if (!retrogradeData || !retrogradeData.planets[planet]) {
+                return false;
+            }
+            
+            const periods = retrogradeData.planets[planet].periods;
+            return periods.some(period => {
+                const start = new Date(period.start);
+                const end = new Date(period.end);
+                return date >= start && date <= end;
+            });
+        }
+
+        function getNextNonRetrograde() {
+            if (!retrogradeData) return null;
+            
+            const now = new Date();
+            let checkDate = new Date(now);
+            const maxDate = new Date(retrogradeData.metadata.end_year, 11, 31);
+            
+            // Check up to the end of our data
+            while (checkDate <= maxDate) {
+                let anyRetrograde = false;
+                
+                for (const planet in retrogradeData.planets) {
+                    if (isInRetrograde(planet, checkDate)) {
+                        anyRetrograde = true;
+                        break;
+                    }
+                }
+                
+                if (!anyRetrograde) {
+                    return checkDate;
+                }
+                
+                checkDate.setDate(checkDate.getDate() + 1);
+            }
+            
+            return null;
+        }
+
+        function updateStatus() {
+            if (!retrogradeData) {
+                return;
+            }
+            
+            const now = new Date();
+            const statusEl = document.getElementById('status');
+            const planetGrid = document.getElementById('planetGrid');
+            const nextDateEl = document.getElementById('nextDate');
+            
+            let anyRetrograde = false;
+            planetGrid.innerHTML = '';
+            
+            // Define planet order (solar system order)
+            const planetOrder = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'chiron'];
+            
+            // Get planets in proper order, filter out those with no data
+            const planets = planetOrder.filter(planet => 
+                retrogradeData.planets[planet] && 
+                (retrogradeData.planets[planet].count > 0 || retrogradeData.planets[planet].periods.length > 0)
+            );
+            
+            for (const planet of planets) {
+                const retrograde = isInRetrograde(planet, now);
+                if (retrograde) anyRetrograde = true;
+                
+                const card = document.createElement('div');
+                card.className = 'planet-card';
+                
+                // Get symbol if available
+                const symbol = planetSymbols[planet] || '';
+                
+                let statusText = '';
+                if (retrograde) {
+                    statusText = 'Earth in Retrograde';
+                } else {
+                    // Find next retrograde date for this planet
+                    const nextRetrograde = findNextRetrogradeForPlanet(planet, now);
+                    if (nextRetrograde) {
+                        statusText = `Next Retrograde: ${nextRetrograde.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        })}`;
+                    } else {
+                        statusText = 'No upcoming retrograde';
+                    }
+                }
+                
+                card.innerHTML = `
+                    <div class="planet-name">${symbol} ${planet.charAt(0).toUpperCase() + planet.slice(1)}</div>
+                    <div class="retrograde-status ${retrograde ? 'retrograde-yes' : ''}">
+                        ${statusText}
+                    </div>
+                `;
+                planetGrid.appendChild(card);
+            }
+            
+            statusEl.textContent = anyRetrograde ? 'YES' : 'NO';
+            statusEl.className = `status ${anyRetrograde ? 'yes' : 'no'}`;
+            
+            // Clear the next date element since we're showing the info in footer
+            nextDateEl.textContent = '';
+            
+            // Update footer message
+            updateFooterMessage();
+        }
+
+        function findNextRetrograde(fromDate) {
+            if (!retrogradeData) return null;
+            
+            let nearestRetrograde = null;
+            let nearestDate = null;
+            let nearestPlanet = null;
+            
+            for (const planet in retrogradeData.planets) {
+                const periods = retrogradeData.planets[planet].periods;
+                
+                for (const period of periods) {
+                    const start = new Date(period.start);
+                    if (start > fromDate) {
+                        if (!nearestDate || start < nearestDate) {
+                            nearestDate = start;
+                            nearestPlanet = planet;
+                        }
+                        break; // Periods are chronological, so we found the next one
+                    }
+                }
+            }
+            
+            return nearestDate ? { date: nearestDate, planet: nearestPlanet } : null;
+        }
+
+        function findNextRetrogradeForPlanet(planet, fromDate) {
+            if (!retrogradeData || !retrogradeData.planets[planet]) return null;
+            
+            const periods = retrogradeData.planets[planet].periods;
+            
+            for (const period of periods) {
+                const start = new Date(period.start);
+                if (start > fromDate) {
+                    return start;
+                }
+            }
+            
+            return null;
+        }
+
+        function getNonRetrogradePeriodDuration(startDate) {
+            if (!retrogradeData) return null;
+            
+            let checkDate = new Date(startDate);
+            const maxDate = new Date(retrogradeData.metadata.end_year, 11, 31);
+            let dayCount = 0;
+            
+            // Count consecutive days when Earth is NOT in retrograde from any planet
+            while (checkDate <= maxDate) {
+                let anyRetrograde = false;
+                
+                for (const planet in retrogradeData.planets) {
+                    if (isInRetrograde(planet, checkDate)) {
+                        anyRetrograde = true;
+                        break;
+                    }
+                }
+                
+                if (anyRetrograde) {
+                    // Found the end of the non-retrograde period
+                    return dayCount;
+                }
+                
+                dayCount++;
+                checkDate.setDate(checkDate.getDate() + 1);
+            }
+            
+            return dayCount;
+        }
+
+        function updateFooterMessage() {
+            const footerMessage = document.getElementById('footerMessage');
+            const now = new Date();
+            let anyRetrograde = false;
+            
+            // Check if Earth is currently in retrograde from any planet
+            for (const planet in retrogradeData.planets) {
+                if (isInRetrograde(planet, now)) {
+                    anyRetrograde = true;
+                    break;
+                }
+            }
+            
+            if (anyRetrograde) {
+                // Earth is currently in retrograde, show when it will not be
+                const nextDate = getNextNonRetrograde();
+                if (nextDate) {
+                    const periodDuration = getNonRetrogradePeriodDuration(nextDate);
+                    footerMessage.textContent = `Earth will NOT be in Retrograde on ${nextDate.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    })} for ${periodDuration} days`;
+                } else {
+                    footerMessage.textContent = 'Earth continues in retrograde beyond our data range';
+                }
+            } else {
+                // Earth is not in retrograde, show when it will be
+                const nextRetrograde = findNextRetrograde(now);
+                if (nextRetrograde) {
+                    const periodDuration = getNonRetrogradePeriodDuration(now);
+                    footerMessage.textContent = `Earth will NOT be in Retrograde until ${nextRetrograde.date.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    })} for ${periodDuration} days`;
+                } else {
+                    footerMessage.textContent = 'Earth will not be in Retrograde for the remainder of our data range';
+                }
+            }
+        }
+
+        // Initialize
+        createStarfield();
+        
+        // Show loading state
+        const statusEl = document.getElementById('status');
+        statusEl.innerHTML = '<div class="loading"></div>';
+        
+        // Load data and start
+        loadRetrogradeData();
+        
+        // Update every day
+        setInterval(() => {
+            if (retrogradeData && !dataLoadError) {
+                updateStatus();
+            }
+        }, 86400000); // 24 hours in milliseconds
+    </script>
+</body>
+</html>

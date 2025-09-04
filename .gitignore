@@ -1,0 +1,4 @@
+*.bsp
+*.gz
+venv/
+__pycache__/
