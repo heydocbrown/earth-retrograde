@@ -2,3 +2,4 @@
 *.gz
 venv/
 __pycache__/
+.vercel
